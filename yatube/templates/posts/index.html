@@ -1,0 +1,40 @@
+{% extends 'posts/base.html' %}
+{% load cache %}
+{% load thumbnail %}
+{% block title %}
+Последние обновления на сайте
+{% endblock %}
+
+{% block content %}
+{% cache 20 index_page page_obj.number %}
+<div class="container py-5">
+  {% block header %}Последние обновления на сайте{% endblock %}
+  {% include 'includes/switcher.html' %}
+  {% for post in page_obj %}
+    <article>
+      <ul>
+        <li>
+          {% if post.author.get_full_name %}
+          <a href={% url "posts:profile" post.author.username %}>{{ post.author.get_full_name }}</a>
+          {% else %}
+          <a href={% url "posts:profile" post.author.username %}>Анонимный автор</a>
+          {% endif %}
+        </li>
+        <li>
+          Дата публикации: {{ post.pub_date|date:"d E Y" }}
+        </li>
+      </ul>
+      {% thumbnail post.image "960x339" crop="center" upscale=True as im %}
+      <img class="card-img my-2" src="{{ im.url }}">
+      {% endthumbnail %}
+      <p>{{ post.text }}</p>
+      {% if post.group %}    
+      <a href={% url "posts:group_posts" post.group.slug %}>все записи группы</a>
+      {% endif %}
+    </article>
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %}
+  {% include 'includes/paginator.html' %}
+</div>
+{% endcache %}   
+{% endblock %}

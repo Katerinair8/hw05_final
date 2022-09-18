@@ -1,0 +1,9 @@
+{% extends 'posts/base.html' %}
+{% block title %}Custom 500{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <h1>Custom 500</h1>
+  <p>Сервер не смог обработать запрос для страницы {{ path }}</p>
+  <a href="{% url 'posts:index' %}">Идите на главную</a>
+</div>
+{% endblock %} 
