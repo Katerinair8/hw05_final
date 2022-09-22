@@ -34,15 +34,18 @@ def profile(request, username):
     post_list = author.posts.all()
     page_obj = paginate_objects(post_list, request)
     if current_user.is_authenticated:
-        following_query = Follow.objects.filter(author=author, user=current_user)
+        following_query = Follow.objects.filter(
+            author=author,
+            user=current_user
+        )
         if following_query.exists():
             following = True
         else:
             following = False
         context = {
-        'page_obj': page_obj,
-        'author': author,
-        'following': following,
+            'page_obj': page_obj,
+            'author': author,
+            'following': following,
         }
         return render(request, 'posts/profile.html', context)
     context = {
@@ -151,6 +154,9 @@ def profile_unfollow(request, username):
     if Follow.objects.filter(
         user=current_user, author=author
     ).exists():
-        following_query = Follow.objects.filter(user=current_user, author=author)
+        following_query = Follow.objects.filter(
+            user=current_user,
+            author=author
+        )
         following_query.delete()
     return redirect('posts:index')

@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from urllib import response
 
 from django import forms
 from django.urls import reverse
@@ -199,7 +198,7 @@ class PostPagesTests(TestCase):
         в кеше и обновляется раз в 20 секунд
         """
         response_before_cache = self.authorized_client.get(self.index_page)
-        
+
         post_cached = Post.objects.get(pk=1)
         post_cached.text = 'Измененный текст'
         post_cached.save()
@@ -227,7 +226,7 @@ class PostPagesTests(TestCase):
             response_before_cache.content,
             response_clear_cache.content
         )
-    
+
     def test_image_in_context(self):
         """
         Шаблоны index, profile, group_list, post_detail сформированы
@@ -266,7 +265,10 @@ class PostPagesTests(TestCase):
             with self.subTest(page=page):
                 response = self.authorized_client.get(page)
                 context = response.context['page_obj']
-                self.assertEqual(form_data['image'].open().read(), context[0].image.read())
+                self.assertEqual(
+                    form_data['image'].open().read(),
+                    context[0].image.read()
+                )
 
     def test_user_can_follow(self):
         """
@@ -286,7 +288,7 @@ class PostPagesTests(TestCase):
             Follow.objects.filter(
                 user=follower,
                 author=following,
-                ).exists()
+            ).exists()
         )
 
     def test_user_can_unfollow(self):
@@ -311,7 +313,7 @@ class PostPagesTests(TestCase):
             Follow.objects.filter(
                 user=follower,
                 author=following,
-                ).exists()
+            ).exists()
         )
 
     def test_post_for_follower(self):
@@ -321,9 +323,8 @@ class PostPagesTests(TestCase):
         """
         author = User.objects.create(username='Author')
         user_follower = Follow.objects.create(
-            user = User.objects.create(
-                username='user_follower'
-                ),
+            user=User.objects.create(
+                username='user_follower'),
             author=author
         )
         self.authorized_client.force_login(user_follower.user)

@@ -39,7 +39,6 @@ class PostFormTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
         super().tearDownClass()
 
-
     def setUp(self):
         self.guest_client = Client()
         self.authorized_client = Client()
@@ -133,8 +132,8 @@ class PostFormTests(TestCase):
             reverse(
                 'posts:add_comment',
                 args=(post_to_comment.id,)),
-                data=form_data,
-                follow=True
+            data=form_data,
+            follow=True
         )
         comments_after_adding = Post.objects.filter(
             id=post_to_comment.id
@@ -148,8 +147,7 @@ class PostFormTests(TestCase):
         self.assertTrue(
             Comment.objects.filter(
                 author=current_user,
-                text='test_comment',
-                ).exists()
+                text='test_comment',).exists()
         )
         self.assertEqual(comments_after_adding.count(), comments_count + 1)
         self.assertRedirects(response, redirect_url)
