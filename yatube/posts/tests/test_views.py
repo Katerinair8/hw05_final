@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from urllib import response
 
 from django import forms
 from django.urls import reverse
@@ -7,6 +8,7 @@ from django.test import Client, TestCase
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from ..models import Follow, Group, Post
 
@@ -46,10 +48,14 @@ class PostPagesTests(TestCase):
             'posts:post_edit',
             args=(cls.post.id,)
         )
+        cls.profile_follow = 'posts:profile_follow'
+        cls.profile_unfollow = 'posts:profile_unfollow'
 
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
+        self.authorized_client_not_follower = Client()
+        self.authorized_client_not_follower.force_login(self.user)
         cache.clear()
 
     def test_pages_uses_correct_template(self):
@@ -192,66 +198,152 @@ class PostPagesTests(TestCase):
         Проверка что на главной странице список записей хранится
         в кеше и обновляется раз в 20 секунд
         """
-        first_state = self.authorized_client.get(reverse('posts:index'))
-        post_1 = Post.objects.get(pk=1)
-        post_1.text = 'Измененный текст'
-        post_1.save()
-        second_state = self.authorized_client.get(reverse('posts:index'))
-        self.assertEqual(first_state.content, second_state.content)
+        response_before_cache = self.authorized_client.get(self.index_page)
+        
+        post_cached = Post.objects.get(pk=1)
+        post_cached.text = 'Измененный текст'
+        post_cached.save()
+
+        response_cached = self.authorized_client.get(self.index_page)
+
+        self.assertEqual(
+            response_before_cache.content,
+            response_cached.content
+        )
+        self.assertNotIn(
+            post_cached.text,
+            response_cached.content.decode()
+        )
+
         cache.clear()
-        third_state = self.authorized_client.get(reverse('posts:index'))
-        self.assertNotEqual(first_state.content, third_state.content)
+
+        response_clear_cache = self.authorized_client.get(self.index_page)
+
+        self.assertIn(
+            post_cached.text,
+            response_clear_cache.content.decode()
+        )
+        self.assertNotEqual(
+            response_before_cache.content,
+            response_clear_cache.content
+        )
+    
+    def test_image_in_context(self):
+        """
+        Шаблоны index, profile, group_list, post_detail сформированы
+        с правильным контекстом при выводе поста с картинкой
+        """
+        small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=small_gif,
+            content_type='posts/small.gif'
+        )
+        test_pages = [
+            self.index_page,
+            self.group_posts,
+            self.profile
+        ]
+        form_data = {
+            'text': 'Тестовый текст',
+            'group': self.group.id,
+            'image': uploaded,
+        }
+        response = self.authorized_client.post(
+            self.post_create,
+            data=form_data,
+            follow=True
+        )
+
+        for page in test_pages:
+            with self.subTest(page=page):
+                response = self.authorized_client.get(page)
+                context = response.context['page_obj']
+                self.assertEqual(form_data['image'].open().read(), context[0].image.read())
 
     def test_user_can_follow(self):
         """
         Авторизованный пользователь может подписываться
-        на других пользователей и удалять их из подписок
+        на других пользователей
         """
-        follower = User.objects.create_user(username='follower')
-        following = User.objects.create_user(username='following')
+        follower = User.objects.create(username='follower')
+        following = User.objects.create(username='following')
+        before_follow = Follow.objects.all().count()
         Follow.objects.create(
             user=follower,
-            author=following
-        )
-        before_follow = Follow.objects.all().count()
-        self.authorized_client.get(
-            reverse(
-                'posts:profile_follow',
-                args=(following,))
+            author=following,
         )
 
         self.assertEqual(Follow.objects.all().count(), before_follow + 1)
-
-        self.authorized_client.get(
-            reverse('posts:profile_unfollow', args=(following,))
+        self.assertTrue(
+            Follow.objects.filter(
+                user=follower,
+                author=following,
+                ).exists()
         )
 
-        self.assertEqual(Follow.objects.all().count(), before_follow)
+    def test_user_can_unfollow(self):
+        """
+        Авторизованный пользователь может удалять
+        других пользователей из подписок
+        """
+        follower = User.objects.create(username='follower')
+        following = User.objects.create(username='following')
+        self.authorized_client.get(
+            reverse(
+                self.profile_follow,
+                args=(following,))
+        )
+        before_unfollow = Follow.objects.all().count()
+        self.authorized_client.get(
+            reverse(self.profile_unfollow, args=(following,))
+        )
+
+        self.assertEqual(Follow.objects.all().count(), before_unfollow - 1)
+        self.assertFalse(
+            Follow.objects.filter(
+                user=follower,
+                author=following,
+                ).exists()
+        )
 
     def test_post_for_follower(self):
         """
         Новая запись пользователя появляется в ленте тех,
         кто на него подписан
         """
-        author = User.objects.create_user(username='Author')
+        author = User.objects.create(username='Author')
+        user_follower = Follow.objects.create(
+            user = User.objects.create(
+                username='user_follower'
+                ),
+            author=author
+        )
+        self.authorized_client.force_login(user_follower.user)
+        user_not_follower = User.objects.create(username='not_follower')
+        self.authorized_client_not_follower.force_login(user_not_follower)
         post_for_following = Post.objects.create(
             author=author,
             text='Текст с большим количеством букв',
             group=self.group,
         )
         self.authorized_client.get(
-            reverse('posts:profile_follow', kwargs={'username': author})
+            reverse(self.profile_follow, kwargs={'username': author})
         )
         follower_index_url = reverse('posts:follow_index')
         response = self.authorized_client.get(follower_index_url)
-        object = response.context['page_obj'][0].text
+        objects = response.context['page_obj']
 
-        self.assertEqual(object, post_for_following.text)
+        self.assertIn(post_for_following, objects)
 
-        self.authorized_client.get(
-            reverse('posts:profile_unfollow', kwargs={'username': author})
-        )
-        response = self.authorized_client.get(follower_index_url)
+        response = self.authorized_client_not_follower.get(follower_index_url)
         objects_count = len(response.context['page_obj'])
 
         self.assertEqual(objects_count, 0)
@@ -310,8 +402,8 @@ class TestingPaginator(TestCase):
                 self.assertEqual(
                     len(context_first_page),
                     settings.POST_PER_PAGE,
-                    f'На странице {page} показывается \
-                    {settings.POST_PER_PAGE} постов'
+                    f'На странице {page} показывается'
+                    f'{settings.POST_PER_PAGE} постов'
                 )
                 self.assertEqual(
                     len(context_second_page),

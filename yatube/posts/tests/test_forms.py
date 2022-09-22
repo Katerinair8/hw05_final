@@ -21,7 +21,7 @@ class PostFormTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.user = User.objects.create_user(username='auth')
+        cls.user = User.objects.create(username='auth')
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test-slug',
@@ -36,8 +36,9 @@ class PostFormTests(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
 
     def setUp(self):
         self.guest_client = Client()
@@ -117,28 +118,38 @@ class PostFormTests(TestCase):
     def test_comments(self):
         """Авторизированный пользователь может комментировать посты"""
 
-        post = self.post
+        post_to_comment = self.post
+        current_user = User.objects.create(username="Authorized_user")
+        self.authorized_client.force_login(current_user)
         comments_count = Comment.objects.filter(
-            post=post.id
+            post_id=post_to_comment.id
         ).count()
         form_data = {
+            'post': post_to_comment,
+            'author': current_user,
             'text': 'test_comment',
         }
         response = self.authorized_client.post(
             reverse(
                 'posts:add_comment',
-                args=(PostFormTests.post.id,)),
-            data=form_data,
-            follow=True
+                args=(post_to_comment.id,)),
+                data=form_data,
+                follow=True
         )
-        comments = Post.objects.filter(
-            id=post.id
-        ).values_list('comments', flat=True)
+        comments_after_adding = Post.objects.filter(
+            id=post_to_comment.id
+        )
         redirect_url = reverse(
             'posts:post_detail',
             args=(PostFormTests.post.id,)
         )
 
         self.assertEqual(response.status_code, HTTPStatus.OK)
-        self.assertEqual(len(comments), comments_count + 1)
+        self.assertTrue(
+            Comment.objects.filter(
+                author=current_user,
+                text='test_comment',
+                ).exists()
+        )
+        self.assertEqual(comments_after_adding.count(), comments_count + 1)
         self.assertRedirects(response, redirect_url)

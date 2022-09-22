@@ -1,13 +1,13 @@
 {% extends 'posts/base.html' %}
 {% load thumbnail %}
 {% block title %}
-Последние обновления на сайте
+Последние посты авторов из подписок
 {% endblock %}
 
 {% block content %}
 {% load user_filters %}
 <div class="container py-5">
-  {% block header %}Последние обновления на сайте{% endblock %}
+  {% block header %}Последние обновления авторов из подписок{% endblock %}
   {% include 'includes/switcher.html' %}
   {% for post in page_obj %}
     <article>
