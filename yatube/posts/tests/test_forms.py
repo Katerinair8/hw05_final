@@ -8,8 +8,8 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from ..forms import PostForm, Comment
-from ..models import Post, Group
+from posts.forms import PostForm, Comment
+from posts.models import Post, Group
 
 User = get_user_model()
 
@@ -114,7 +114,7 @@ class PostFormTests(TestCase):
             ).exists()
         )
 
-    def test_comments(self):
+    def test_add_comments(self):
         """Авторизированный пользователь может комментировать посты"""
 
         post_to_comment = self.post
@@ -151,3 +151,4 @@ class PostFormTests(TestCase):
         )
         self.assertEqual(comments_after_adding.count(), comments_count + 1)
         self.assertRedirects(response, redirect_url)
+        self.assertEqual(Comment.objects.last().text, form_data['text'])

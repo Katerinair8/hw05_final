@@ -1,9 +1,11 @@
+import shutil
+import tempfile
 from http import HTTPStatus
 
 from django import forms
 from django.urls import reverse
 from django.core.paginator import Page
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.contrib.auth import get_user_model
 from django.conf import settings
 from django.core.cache import cache
@@ -13,7 +15,9 @@ from ..models import Follow, Group, Post
 
 User = get_user_model()
 
+TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
+@override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
 class PostPagesTests(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -49,6 +53,11 @@ class PostPagesTests(TestCase):
         )
         cls.profile_follow = 'posts:profile_follow'
         cls.profile_unfollow = 'posts:profile_unfollow'
+    
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
 
     def setUp(self):
         self.authorized_client = Client()

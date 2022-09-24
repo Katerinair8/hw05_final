@@ -38,10 +38,7 @@ def profile(request, username):
             author=author,
             user=current_user
         )
-        if following_query.exists():
-            following = True
-        else:
-            following = False
+        following = following_query.exists()
         context = {
             'page_obj': page_obj,
             'author': author,
@@ -51,7 +48,7 @@ def profile(request, username):
     context = {
         'page_obj': page_obj,
         'author': author,
-    }
+        }
     return render(request, 'posts/profile.html', context)
 
 
@@ -94,19 +91,17 @@ def post_edit(request, post_id: int):
         files=request.FILES or None,
         instance=post
     )
-    if current_user == post.author:
-        context = {
-            'is_edit': True,
-            'post': post,
-            'form': form,
-        }
-        if request.method == 'POST':
-            if form.is_valid():
-                form.save()
-                return redirect('posts:post_detail', post_id=post_id)
-        return render(request, 'posts/create_post.html', context)
-    else:
+    if current_user != post.author:
         return redirect('posts:post_detail', post_id=post_id)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return redirect('posts:post_detail', post_id=post_id)
+    context = {
+        'is_edit': True,
+        'post': post,
+        'form': form,
+    }
+    return render(request, 'posts/create_post.html', context)
 
 
 @login_required
@@ -119,7 +114,6 @@ def add_comment(request, post_id):
             comment.author = request.user
             comment.post = post
             comment.save()
-            return redirect('posts:post_detail', post_id=post_id)
     return redirect('posts:post_detail', post_id=post_id)
 
 
@@ -130,7 +124,6 @@ def follow_index(request):
         author__following__user=current_user)
     page_obj = paginate_objects(post_list, request)
     context = {
-        'user_object': current_user,
         'page_obj': page_obj,
     }
     return render(request, 'posts/follow.html', context)
@@ -140,9 +133,11 @@ def follow_index(request):
 def profile_follow(request, username):
     current_user = request.user
     author = get_object_or_404(User, username=username)
-    if author != current_user and not Follow.objects.filter(
-        user=current_user, author=author
-    ).exists():
+    following_query = Follow.objects.filter(
+        author=author,
+        user=current_user
+    )
+    if author != current_user and not following_query.exists():
         Follow.objects.create(user=current_user, author=author)
     return redirect('posts:follow_index')
 
@@ -151,12 +146,10 @@ def profile_follow(request, username):
 def profile_unfollow(request, username):
     current_user = request.user
     author = get_object_or_404(User, username=username)
-    if Follow.objects.filter(
-        user=current_user, author=author
-    ).exists():
-        following_query = Follow.objects.filter(
-            user=current_user,
-            author=author
-        )
+    following_query = Follow.objects.filter(
+        author=author,
+        user=current_user
+    )
+    if following_query.exists():
         following_query.delete()
     return redirect('posts:index')
