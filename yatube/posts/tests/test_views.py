@@ -60,6 +60,7 @@ class PostPagesTests(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
         super().tearDownClass()
 
+
     def setUp(self):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
