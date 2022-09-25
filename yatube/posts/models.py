@@ -58,7 +58,7 @@ class Post(models.Model):
     )
 
     class Meta:
-        ordering = ('-pub_date',)
+        ordering = ('-pub_date', )
         verbose_name = 'Пост'
         verbose_name_plural = 'Посты'
 
@@ -70,25 +70,25 @@ class Comment(models.Model):
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
-        related_name='comments'
+        related_name='comments',
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='comments',
-        verbose_name='Автор комментария'
+        verbose_name='Автор комментария',
     )
     text = models.TextField(
         verbose_name='Текст комментария',
-        help_text='Введите текст комментария'
+        help_text='Введите текст комментария',
     )
     created = models.DateTimeField(
         auto_now_add=True,
-        verbose_name='Дата публикации комментария'
+        verbose_name='Дата публикации комментария',
     )
 
     class Meta:
-        ordering = ('-created',)
+        ordering = ('-created', )
         verbose_name = 'Комментарий к посту'
         verbose_name_plural = 'Комментарии к посту'
 
@@ -101,13 +101,13 @@ class Follow(models.Model):
         User,
         on_delete=models.CASCADE,
         related_name='follower',
-        verbose_name='Подписчик'
+        verbose_name='Подписчик',
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='following',
-        verbose_name='Автор постов для подписчиков'
+        verbose_name='Автор постов для подписчиков',
     )
 
     class Meta:
@@ -115,7 +115,7 @@ class Follow(models.Model):
             models.UniqueConstraint(
                 fields=('user', 'author',),
                 name='unique_user_author',
-            )
+            ), 
         )
         verbose_name = 'Подписка'
         verbose_name_plural = 'Подписки'
